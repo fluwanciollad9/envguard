@@ -1,76 +1,50 @@
-"""CLI entry-point for envguard."""
-
-from __future__ import annotations
-
-import sys
-from pathlib import Path
-
+"""Main CLI entry point for envguard."""
 import click
 
-from .differ import diff_envs, has_differences
-from .parser import parse_env_file
-from .schema import SchemaError, load_schema, optional_keys, required_keys
-from .validator import validate_env
+from envguard.output import emit_diff, emit_validation, run_and_exit
+from envguard.cli_merge import merge_cmd
+from envguard.cli_audit import audit_cmd
+from envguard.cli_snapshot import snapshot_cmd
 
 
 @click.group()
-def cli() -> None:
+def cli():
     """envguard — validate and diff .env files."""
 
 
 @cli.command()
-@click.argument("base", type=click.Path(exists=True))
-@click.argument("compare", type=click.Path(exists=True))
-def diff(base: str, compare: str) -> None:
-    """Diff two .env files and report differences."""
-    base_env = parse_env_file(base)
-    compare_env = parse_env_file(compare)
-    result = diff_envs(base_env, compare_env)
+@click.argument("base")
+@click.argument("compare")
+@click.option("--format", "fmt", type=click.Choice(["text", "json"]), default="text", show_default=True)
+@click.option("--exit-code", is_flag=True, default=False, help="Exit 1 if differences found.")
+def diff(base: str, compare: str, fmt: str, exit_code: bool):
+    """Diff two .env files."""
+    from envguard.differ import diff_envs
+    from envguard.parser import parse_env_file
 
-    if not has_differences(result):
-        click.echo("No differences found.")
-        return
-
-    if result.added:
-        click.echo("Added keys: " + ", ".join(sorted(result.added)))
-    if result.removed:
-        click.echo("Removed keys: " + ", ".join(sorted(result.removed)))
-    if result.changed:
-        click.echo("Changed keys: " + ", ".join(sorted(result.changed)))
-    sys.exit(1)
+    result = diff_envs(parse_env_file(base), parse_env_file(compare))
+    run_and_exit(emit_diff(result, fmt=fmt), use_exit_code=exit_code and (result.missing or result.extra or result.changed))
 
 
 @cli.command()
-@click.argument("env_file", type=click.Path(exists=True))
-@click.option(
-    "--schema",
-    "schema_path",
-    required=True,
-    type=click.Path(),
-    help="Path to JSON or TOML schema file.",
-)
-@click.option(
-    "--strict",
-    is_flag=True,
-    default=False,
-    help="Fail on unknown keys not listed in schema.",
-)
-def validate(env_file: str, schema_path: str, strict: bool) -> None:
+@click.argument("env_file")
+@click.option("-s", "--schema", "schema_path", required=True, help="Path to schema file (TOML or JSON).")
+@click.option("--format", "fmt", type=click.Choice(["text", "json"]), default="text", show_default=True)
+@click.option("--exit-code", is_flag=True, default=False)
+def validate(env_file: str, schema_path: str, fmt: str, exit_code: bool):
     """Validate an .env file against a schema."""
-    try:
-        schema = load_schema(schema_path)
-    except SchemaError as exc:
-        click.echo(f"Schema error: {exc}", err=True)
-        sys.exit(2)
+    from envguard.validator import validate_env
+    from envguard.schema import load_schema
 
-    env = parse_env_file(env_file)
-    result = validate_env(
-        env,
-        required=required_keys(schema),
-        optional=optional_keys(schema),
-        allow_unknown=not strict,
-    )
+    schema = load_schema(schema_path)
+    result = validate_env(schema, env_file)
+    run_and_exit(emit_validation(result, fmt=fmt), use_exit_code=exit_code and not result.valid)
 
-    click.echo(result.summary())
-    if not result.is_valid:
-        sys.exit(1)
+
+cli.add_command(merge_cmd, name="merge")
+cli.add_command(audit_cmd, name="audit")
+cli.add_command(snapshot_cmd, name="snapshot")
+
+
+if __name__ == "__main__":
+    cli()
