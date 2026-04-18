@@ -11,7 +11,10 @@ from envguard.duplicates import find_duplicates
 @click.option("--strict", is_flag=True, default=False, help="Exit non-zero if duplicates found.")
 def duplicates_cmd(envfile: str, fmt: str, strict: bool) -> None:
     """Find duplicate keys in ENVFILE."""
-    result = find_duplicates(envfile)
+    try:
+        result = find_duplicates(envfile)
+    except OSError as exc:
+        raise click.ClickException(f"Could not read file: {exc}") from exc
 
     if fmt == "json":
         data = {
