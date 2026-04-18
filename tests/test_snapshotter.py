@@ -74,3 +74,16 @@ def test_diff_with_snapshot_detects_missing(tmp_path):
     write_env(env_file, "FOO=bar\n")
     result = diff_with_snapshot(env_file, snap_file)
     assert "GONE" in result.missing
+
+
+def test_diff_with_snapshot_no_changes(tmp_path):
+    """Diff against an identical env file should report no changes."""
+    env_file = str(tmp_path / ".env")
+    snap_file = str(tmp_path / "snap.json")
+    write_env(env_file, "FOO=bar\nBAZ=qux\n")
+    snap = take_snapshot(env_file)
+    save_snapshot(snap, snap_file)
+    result = diff_with_snapshot(env_file, snap_file)
+    assert result.changed == []
+    assert result.extra == []
+    assert result.missing == []
