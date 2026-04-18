@@ -65,3 +65,11 @@ def test_errors_and_warnings_partition_issues():
     result = audit_env({"TOKEN": "", "SOME_VAR": "  hi  "})
     all_issues = result.errors + result.warnings
     assert set(i.key for i in all_issues) == set(i.key for i in result.issues)
+
+
+def test_empty_env_returns_no_issues():
+    """An empty environment dict should produce a clean AuditResult."""
+    result = audit_env({})
+    assert not result.has_issues
+    assert result.errors == []
+    assert result.warnings == []
