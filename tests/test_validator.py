@@ -64,3 +64,11 @@ def test_summary_shows_issues():
     assert "FOO" in summary
     assert "BAR" in summary
     assert "BAZ" in summary
+
+
+def test_whitespace_only_value_treated_as_empty():
+    """A value containing only whitespace should be treated as empty."""
+    env = {**ENV, "SECRET_KEY": "   "}
+    result = validate_env(env, required=["DATABASE_URL", "SECRET_KEY"])
+    assert not result.is_valid
+    assert "SECRET_KEY" in result.empty_required
