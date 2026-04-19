@@ -1,32 +1,22 @@
-"""Value-level diff between two env files, reporting changed, added, and removed keys."""
-
+"""Value-level diff between two .env files."""
 from __future__ import annotations
-
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 
 @dataclass
 class ValueDiff:
-    """Represents a single key-level difference between two env mappings."""
-
     key: str
-    source_value: Optional[str]  # None if key absent in source
-    target_value: Optional[str]  # None if key absent in target
+    source_value: Optional[str]
+    target_value: Optional[str]
 
-    @property
     def is_added(self) -> bool:
-        """Key exists only in target."""
         return self.source_value is None and self.target_value is not None
 
-    @property
     def is_removed(self) -> bool:
-        """Key exists only in source."""
         return self.source_value is not None and self.target_value is None
 
-    @property
     def is_modified(self) -> bool:
-        """Key exists in both but values differ."""
         return (
             self.source_value is not None
             and self.target_value is not None
@@ -34,66 +24,61 @@ class ValueDiff:
         )
 
     def __str__(self) -> str:
-        if self.is_added:
+        if self.is_added():
             return f"+ {self.key}={self.target_value}"
-        if self.is_removed:
+        if self.is_removed():
             return f"- {self.key}={self.source_value}"
         return f"~ {self.key}: {self.source_value!r} -> {self.target_value!r}"
 
 
 @dataclass
 class ValueDiffResult:
-    """Aggregated result of a value-level diff between two env mappings."""
-
+    source_label: str
+    target_label: str
     diffs: List[ValueDiff] = field(default_factory=list)
+    unchanged: List[str] = field(default_factory=list)
 
-    @property
     def has_differences(self) -> bool:
         return bool(self.diffs)
 
-    @property
     def added(self) -> List[ValueDiff]:
-        return [d for d in self.diffs if d.is_added]
+        return [d for d in self.diffs if d.is_added()]
 
-    @property
     def removed(self) -> List[ValueDiff]:
-        return [d for d in self.diffs if d.is_removed]
+        return [d for d in self.diffs if d.is_removed()]
 
-    @property
     def modified(self) -> List[ValueDiff]:
-        return [d for d in self.diffs if d.is_modified]
+        return [d for d in self.diffs if d.is_modified()]
 
     def summary(self) -> str:
-        parts = []
-        if self.added:
-            parts.append(f"{len(self.added)} added")
-        if self.removed:
-            parts.append(f"{len(self.removed)} removed")
-        if self.modified:
-            parts.append(f"{len(self.modified)} modified")
-        return ", ".join(parts) if parts else "no differences"
+        a, r, m = len(self.added()), len(self.removed()), len(self.modified())
+        return (
+            f"{self.source_label} vs {self.target_label}: "
+            f"+{a} added, -{r} removed, ~{m} modified, {len(self.unchanged)} unchanged"
+        )
 
 
 def diff_values(
     source: Dict[str, str],
     target: Dict[str, str],
+    source_label: str = "source",
+    target_label: str = "target",
 ) -> ValueDiffResult:
-    """Compare two env mappings and return a ValueDiffResult.
-
-    Args:
-        source: The baseline env mapping (e.g. .env.example).
-        target: The env mapping to compare against (e.g. .env.production).
-
-    Returns:
-        A ValueDiffResult containing all detected differences.
-    """
-    diffs: List[ValueDiff] = []
     all_keys = sorted(set(source) | set(target))
+    diffs: List[ValueDiff] = []
+    unchanged: List[str] = []
 
     for key in all_keys:
-        src_val = source.get(key)
-        tgt_val = target.get(key)
-        if src_val != tgt_val:
-            diffs.append(ValueDiff(key=key, source_value=src_val, target_value=tgt_val))
+        sv = source.get(key)
+        tv = target.get(key)
+        if sv == tv:
+            unchanged.append(key)
+        else:
+            diffs.append(ValueDiff(key=key, source_value=sv, target_value=tv))
 
-    return ValueDiffResult(diffs=diffs)
+    return ValueDiffResult(
+        source_label=source_label,
+        target_label=target_label,
+        diffs=diffs,
+        unchanged=unchanged,
+    )
