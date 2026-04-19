@@ -14,8 +14,12 @@ from envguard.differ_keys import diff_keys
 @click.option("--strict", is_flag=True, help="Exit 1 if any key differences found.")
 def keydiff_cmd(source: str, target: str, fmt: str, strict: bool) -> None:
     """Show keys present in SOURCE but not TARGET, and vice-versa."""
-    src_env = parse_env_file(source)
-    tgt_env = parse_env_file(target)
+    try:
+        src_env = parse_env_file(source)
+        tgt_env = parse_env_file(target)
+    except OSError as exc:
+        raise click.ClickException(f"Failed to read env file: {exc}") from exc
+
     result = diff_keys(src_env, tgt_env, source_name=source, target_name=target)
 
     if fmt == "json":
