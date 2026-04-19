@@ -39,6 +39,14 @@ def test_invalid_int_produces_error():
     assert "PORT" not in result.coerced
 
 
+def test_invalid_float_produces_error():
+    """An unparseable float value should produce an error and not appear in coerced."""
+    result = coerce_env({"RATIO": "not_a_float"}, {"RATIO": "float"})
+    assert result.has_errors
+    assert result.errors[0].key == "RATIO"
+    assert "RATIO" not in result.coerced
+
+
 def test_invalid_bool_produces_error():
     result = coerce_env({"FLAG": "maybe"}, {"FLAG": "bool"})
     assert result.has_errors
