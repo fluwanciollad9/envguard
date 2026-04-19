@@ -79,3 +79,12 @@ def test_is_sensitive_case_insensitive():
     assert _is_sensitive("db_Password") is True
     assert _is_sensitive("APIKEY") is True
     assert _is_sensitive("PORT") is False
+
+
+def test_empty_env_returns_empty_result():
+    """mask_env should handle an empty dict without errors."""
+    result = mask_env({})
+    assert result.masked == {}
+    assert result.masked_keys == []
+    assert result.was_masked() is False
+    assert result.summary() == "No sensitive keys found."
