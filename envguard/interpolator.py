@@ -25,7 +25,13 @@ class InterpolationResult:
 
 
 def _resolve_value(value: str, env: Dict[str, str], allow_os: bool) -> tuple[str, bool]:
-    """Return (resolved_value, all_refs_found)."""
+    """Return (resolved_value, all_refs_found).
+
+    Substitutes all ${VAR} and $VAR references found in *value*.
+    References are looked up first in *env*, then in os.environ when
+    *allow_os* is True.  If a reference cannot be resolved it is left
+    unchanged and *all_refs_found* is returned as False.
+    """
     all_found = True
 
     def replace(match: re.Match) -> str:
@@ -47,6 +53,16 @@ def interpolate(env: Dict[str, str], allow_os: bool = True) -> InterpolationResu
     """Interpolate all values in *env*, resolving cross-references.
 
     A single pass is performed; forward references are not supported.
+
+    Args:
+        env: Mapping of variable names to (possibly un-interpolated) values.
+        allow_os: When True, variables not found in *env* are looked up in
+            ``os.environ`` as a fallback.
+
+    Returns:
+        An :class:`InterpolationResult` whose ``resolved`` dict contains the
+        fully substituted values.  Any key whose value contained at least one
+        unresolvable reference is listed in ``unresolved_keys``.
     """
     resolved: Dict[str, str] = {}
     unresolved: List[str] = []
