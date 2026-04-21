@@ -49,6 +49,11 @@ class TestParseEnvFile:
         result = parse_env_file(path)
         assert result['KEY'] == 'value'
 
+    def test_file_not_found_raises(self):
+        """parse_env_file should raise FileNotFoundError for a missing path."""
+        with pytest.raises(FileNotFoundError):
+            parse_env_file('/nonexistent/path/.env')
+
 
 class TestDiffEnvs:
     def test_no_differences(self):
@@ -75,4 +80,14 @@ class TestDiffEnvs:
         target = {'A': 'new'}
         result = diff_envs(base, target)
         assert 'A' in result.changed_keys
+        assert result.changed_keys['A'] == ('old', 'new')
+
+    def test_combined_differences(self):
+        """has_differences should be True when multiple diff types are present."""
+        base = {'A': 'old', 'B': '2'}
+        target = {'A': 'new', 'C': '3'}
+        result = diff_envs(base, target)
+        assert result.has_differences
+        assert result.missing_keys == ['B']
+        assert result.extra_keys == ['C']
         assert result.changed_keys['A'] == ('old', 'new')
