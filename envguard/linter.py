@@ -34,7 +34,18 @@ _VALID_LINE_RE = re.compile(r'^\s*(#.*)?$|^[A-Za-z_][A-Za-z0-9_]*\s*=')
 
 
 def lint_env(path: str) -> LintResult:
+    """Lint a .env file at *path* and return a :class:`LintResult`.
+
+    Checks performed:
+    - Lines must contain a '=' separator.
+    - Keys must not be empty.
+    - Keys should follow UPPER_SNAKE_CASE convention.
+    - Lines must not have trailing whitespace.
+    - Duplicate keys are reported as warnings.
+    """
     result = LintResult()
+    seen_keys: dict[str, int] = {}
+
     with open(path, "r", encoding="utf-8") as fh:
         lines = fh.readlines()
 
@@ -63,5 +74,16 @@ def lint_env(path: str) -> LintResult:
 
         if line != line.rstrip():
             result.issues.append(LintIssue(lineno, f"Trailing whitespace on line", "warning"))
+
+        if key in seen_keys:
+            result.issues.append(
+                LintIssue(
+                    lineno,
+                    f"Duplicate key {key!r} (first defined on line {seen_keys[key]})",
+                    "warning",
+                )
+            )
+        else:
+            seen_keys[key] = lineno
 
     return result
