@@ -24,9 +24,10 @@ class RedactResult:
     redacted_keys: List[str] = field(default_factory=list)
 
 
-def _is_sensitive(key: str) -> bool:
+def _is_sensitive(key: str, patterns: tuple[str, ...] | list[str] = _SECRET_PATTERNS) -> bool:
+    """Return True if *key* matches any of the given sensitivity *patterns*."""
     upper = key.upper()
-    return any(pat in upper for pat in _SECRET_PATTERNS)
+    return any(pat in upper for pat in patterns)
 
 
 def redact_env(
@@ -46,8 +47,7 @@ def redact_env(
     redacted_keys: List[str] = []
 
     for key, value in env.items():
-        upper = key.upper()
-        if any(pat in upper for pat in patterns):
+        if _is_sensitive(key, patterns):
             if show_partial and len(value) > 4:
                 masked = value[:4] + "*" * (len(value) - 4)
             else:
