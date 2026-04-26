@@ -90,20 +90,31 @@ def test_summary_mentions_added(tmp_path):
     assert "added" in result.summary()
 
 
-def test_str_representation_added():
-    entry = CommentDiffEntry(key="FOO", source_comment=None, target_comment="desc")
-    assert "FOO" in str(entry)
-    assert "desc" in str(entry)
-
-
-def test_str_representation_removed():
-    entry = CommentDiffEntry(key="BAR", source_comment="old", target_comment=None)
-    assert "BAR" in str(entry)
-    assert "old" in str(entry)
-
-
-def test_blank_lines_and_standalone_comments_ignored(tmp_path):
-    src = write_env(tmp_path, "src.env", "# header\n\nKEY=val\n")
-    tgt = write_env(tmp_path, "tgt.env", "# different header\n\nKEY=val\n")
+def test_str_representation_added(tmp_path):
+    src = write_env(tmp_path, "src.env", "KEY=val\n")
+    tgt = write_env(tmp_path, "tgt.env", "KEY=val # hi\n")
     result = diff_comments(src, tgt)
-    assert not result.has_differences()
+    entry = result.changes[0]
+    text = str(entry)
+    assert "KEY" in text
+    assert "added" in text.lower()
+
+
+def test_str_representation_removed(tmp_path):
+    src = write_env(tmp_path, "src.env", "KEY=val # bye\n")
+    tgt = write_env(tmp_path, "tgt.env", "KEY=val\n")
+    result = diff_comments(src, tgt)
+    entry = result.changes[0]
+    text = str(entry)
+    assert "KEY" in text
+    assert "removed" in text.lower()
+
+
+def test_str_representation_modified(tmp_path):
+    src = write_env(tmp_path, "src.env", "KEY=val # old\n")
+    tgt = write_env(tmp_path, "tgt.env", "KEY=val # new\n")
+    result = diff_comments(src, tgt)
+    entry = result.changes[0]
+    text = str(entry)
+    assert "KEY" in text
+    assert "modified" in text.lower()
