@@ -79,3 +79,16 @@ def test_coerce_error_str():
     result = coerce_env({"PORT": "xyz"}, {"PORT": "int"})
     assert "PORT" in str(result.errors[0])
     assert "int" in str(result.errors[0])
+
+
+def test_multiple_errors_all_reported():
+    """When multiple keys fail coercion, all errors should be collected."""
+    result = coerce_env(
+        {"PORT": "abc", "RATIO": "not_a_float"},
+        {"PORT": "int", "RATIO": "float"},
+    )
+    assert result.has_errors
+    error_keys = {e.key for e in result.errors}
+    assert "PORT" in error_keys
+    assert "RATIO" in error_keys
+    assert len(result.errors) == 2
